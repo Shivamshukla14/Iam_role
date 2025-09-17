@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard | MTC App{% endblock %}
+
+{% block topbar %}
+  {% include 'partials/topbar.html' %}
+{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+  <div class="tabs">
+    <input type="radio" id="tab1" name="tabs" checked>
+    <label for="tab1">Active Employees</label>
+    <input type="radio" id="tab2" name="tabs">
+    <label for="tab2">Recertification Pending</label>
+
+    <div class="tab-content" id="content1">
+      <h2>Active Employees</h2>
+      <div class="table-wrapper">
+        <table id="active-table">
+          <thead>
+            <tr>
+              <th>Emp Code</th>
+              <th>Login</th>
+              <th>Birth Date</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Entity</th>
+              <th>Internal Designation</th>
+              <th>External Designation</th>
+              <th>Employer Status</th>
+              <th>Last Work Date</th>
+              <th>Date of Join</th>
+              <th>Business Email</th>
+              <th>Office Mobile</th>
+              <th>Personal Mobile</th>
+              <th>Created On</th>
+              <th>Modified On</th>
+              <th>Num</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="tab-content" id="content2">
+      <h2>Recertification Pending</h2>
+      <div class="table-wrapper">
+        <table id="pending-table">
+          <thead>
+            <tr>
+              <th>Emp Code</th>
+              <th>Login</th>
+              <th>Birth Date</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Entity</th>
+              <th>Internal Designation</th>
+              <th>External Designation</th>
+              <th>Employer Status</th>
+              <th>Last Work Date</th>
+              <th>Date of Join</th>
+              <th>Business Email</th>
+              <th>Office Mobile</th>
+              <th>Personal Mobile</th>
+              <th>Created On</th>
+              <th>Modified On</th>
+              <th>Num</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3>Confirm Recertification</h3>
+      </div>
+      <div class="modal__body">
+        <p id="modal-text">Are you sure you want to recertify for <strong></strong>?</p>
+      </div>
+      <div class="modal__footer">
+        <button id="btn-cancel" class="btn">No</button>
+        <button id="btn-confirm" class="btn btn--primary">Yes, Send Mail</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const fmt = (v) => v == null ? '' : v;
+      const modal = document.getElementById('modal');
+      const modalText = document.getElementById('modal-text');
+      const btnCancel = document.getElementById('btn-cancel');
+      const btnConfirm = document.getElementById('btn-confirm');
+      let currentRow = null;
+
+      function openModal(row) {
+        currentRow = row;
+        modalText.innerHTML = `Are you sure you want to recertify for <strong>${row.first_name} ${row.last_name}</strong>?`;
+        modal.hidden = false;
+        modal.classList.add('is-open');
+      }
+      function closeModal() {
+        modal.classList.remove('is-open');
+        modal.hidden = true;
+        currentRow = null;
+      }
+      btnCancel.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+      function renderRows(tbody, rows, includeAction) {
+        tbody.innerHTML = '';
+        for (const r of rows) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${fmt(r.emp_code)}</td>
+            <td>${fmt(r.login)}</td>
+            <td>${fmt(r.birth_date)}</td>
+            <td>${fmt(r.first_name)}</td>
+            <td>${fmt(r.last_name)}</td>
+            <td>${fmt(r.entity_name)}</td>
+            <td>${fmt(r.internal_designation)}</td>
+            <td>${fmt(r.external_designation)}</td>
+            <td>${fmt(r.employer_status)}</td>
+            <td>${fmt(r.last_work_date)}</td>
+            <td>${fmt(r.date_of_join)}</td>
+            <td>${fmt(r.business_email)}</td>
+            <td>${fmt(r.office_mobile)}</td>
+            <td>${fmt(r.personal_mobile)}</td>
+            <td>${fmt(r.created_on)}</td>
+            <td>${fmt(r.modified_on)}</td>
+            <td>${fmt(r.num)}</td>
+            ${includeAction ? '<td><button class="btn btn--primary btn-recertify" type="button">Recertify</button></td>' : ''}
+          `;
+          if (includeAction) {
+            tr.querySelector('.btn-recertify').addEventListener('click', () => openModal(r));
+          }
+          tbody.appendChild(tr);
+        }
+      }
+
+      async function loadData() {
+        const [actRes, penRes] = await Promise.all([
+          fetch('{% url "dashboard:api_active_employees" %}').then(r => r.json()),
+          fetch('{% url "dashboard:api_pending_recertifications" %}').then(r => r.json()),
+        ]);
+        renderRows(document.querySelector('#active-table tbody'), actRes.results, false);
+        renderRows(document.querySelector('#pending-table tbody'), penRes.results, true);
+      }
+
+      async function sendRecertify() {
+        if (!currentRow) return;
+        const csrftoken = getCookie('csrftoken');
+        const res = await fetch('{% url "dashboard:api_recertify" %}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken,
+          },
+          body: JSON.stringify({
+            first_name: currentRow.first_name,
+            last_name: currentRow.last_name,
+            business_email: currentRow.business_email,
+          }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Approval email sent.');
+        } else {
+          alert('Failed to send email: ' + (data.error || 'Unknown error'));
+        }
+        closeModal();
+      }
+      btnConfirm.addEventListener('click', sendRecertify);
+
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+
+      loadData();
+    });
+  </script>
+</section>
+{% endblock %}

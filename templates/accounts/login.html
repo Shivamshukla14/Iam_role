@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login | MTC App{% endblock %}
+
+{% block content %}
+<section class="login">
+  <div class="login__grid">
+    <div class="login__left">
+      <h1 class="login__title">Welcome</h1>
+      <form method="post" action="{% url 'accounts:login' %}" class="login__form">
+        {% csrf_token %}
+        <div class="form__field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="Enter username" autocomplete="username" />
+        </div>
+        <div class="form__field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password" />
+        </div>
+        <div class="form__actions">
+          <button type="submit" class="btn btn--primary" disabled title="Disabled - Use SSO">Login</button>
+          <a href="{% url 'accounts:sso_start' %}" class="btn btn--microsoft">Sign in with Microsoft</a>
+        </div>
+        <p class="hint">Form login is disabled. Please use Microsoft SSO.</p>
+      </form>
+    </div>
+    <div class="login__right">
+      <img src="{% static 'img/company-logo.svg' %}" alt="Company Logo" class="login__logo" />
+    </div>
+  </div>
+</section>
+{% endblock %}

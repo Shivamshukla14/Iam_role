@@ -1,0 +1,8 @@
+Recertification Approval Needed
+
+Please review the recertification request for:
+- Name: {{ full_name }}
+- Business Email: {{ business_email }}
+- Requested By: {{ requested_by }}
+
+Reply to this email with your approval decision.
